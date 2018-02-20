@@ -1,13 +1,29 @@
 #!/usr/bin/env node
 
-let componentName = process.argv[2];
-let props = process.argv[3] || "" 
+// ---------------------------------------------------------
+// Load required packages 
+// 2018-02-20 12:22
+// ---------------------------------------------------------
 
 let fs = require('fs');
 let path = require('path');
 
-const targetDeposit = (targetDir, currentDir, depositName, depositContent) => {
+// ---------------------------------------------------------
+// Get arguments supplied to program
+// 2018-02-20 12:23
+// ---------------------------------------------------------
 
+let componentName = process.argv[2];
+let props = process.argv[3] || "" 
+
+// ---------------------------------------------------------
+// Define recursive function 
+// 2018-02-20 12:23
+// ---------------------------------------------------------
+// Function deposits a payload inside a given folder into 
+// a given file name. It also returns the path of the file.
+
+const targetDeposit = (targetDir, currentDir, depositName, depositContent) => {
   if (targetDir === currentDir.split("/").slice(-1)[0]) {
     fs.writeFileSync(`${currentDir}/${depositName}`, depositContent);
     return `${currentDir}/${depositName}`;
@@ -19,11 +35,15 @@ const targetDeposit = (targetDir, currentDir, depositName, depositContent) => {
         if (result) return result;
       }
     } catch(e) {
-      return undefined;
+      // do nothing
     }
   }
-
 }
+
+// ---------------------------------------------------------
+// Store Component boilerplate
+// 2018-02-20 12:26
+// ---------------------------------------------------------
 
 let component = 
 `import React from 'react';
@@ -44,15 +64,50 @@ const ${componentName} = (${props}) => {
 
 export default ${componentName};
 `
+// ---------------------------------------------------------
+// Deposit Component boilerplate
+// 2018-02-20 12:29
+// ---------------------------------------------------------
+// Obtain full paths to both components and deposit the component in its correct folder
 
 let pathToComponent = targetDeposit("components", process.env.PWD, `${componentName}.js`, component);
 let pathToContainer = targetDeposit("containers", process.env.PWD, `${componentName}Container.js`, "placeholder");
 
-let pathInCommon = pathToComponent.split("").filter((char, idx) => pathToContainer.split("")[idx] === char).join("");
-let notInContainerPath = pathToComponent.split("").filter((char, idx) => pathToContainer.split("")[idx] !== char).join("");
+// ---------------------------------------------------------
+// Path manipulation
+// 2018-02-20 12:27
+// ---------------------------------------------------------
+// Arrive at correct relative path from container to component so container can require component
 
-let relativePath = path.relative(pathToContainer, pathInCommon);
-let completePath = `${relativePath}/${notInContainerPath}`
+// Change from paths to arrays of directories, for directory-by-directory path manipulation
+
+let directoriesToComponent = pathToComponent.split("/");
+let directoriesToContainer = pathToContainer.split("/");
+
+let pathInCommon = "", uniqueToComponentPath = "", i = 0;
+while (directoriesToComponent[i] === directoriesToContainer[i]) {
+  pathInCommon += `${directoriesToComponent[i]}/`;
+  i++;
+}
+for (let j = i; j < directoriesToComponent.length; j++) {
+  uniqueToComponentPath += `${directoriesToComponent[j]}/`;
+}
+// lop off trailing "/"
+uniqueToComponentPath = uniqueToComponentPath.substring(0, uniqueToComponentPath.length-1); 
+
+directoriesToContainer.splice(-1); // lop off actual file
+directoriesToContainer = directoriesToContainer.join("/");
+
+let relativePathToCommon = path.relative(directoriesToContainer, pathInCommon);
+// transform to "." if relative path is same directory
+if (relativePathToCommon.length === 0) relativePathToCommon = ".";
+
+let completePath = `${relativePathToCommon}/${uniqueToComponentPath}`
+
+// ---------------------------------------------------------
+// Store container boilerplate
+// 2018-02-20 12:28
+// ---------------------------------------------------------
 
 let container = 
 `import React, {Component} from 'react';
@@ -88,5 +143,10 @@ const ${componentName}Container = withRouter(
 export default ${componentName}Container;
 
 `
+
+// ---------------------------------------------------------
+// Deposit Container boilerplate
+// 2018-02-20 12:28
+// ---------------------------------------------------------
 
 targetDeposit("containers", process.env.PWD, `${componentName}Container.js`, container);
